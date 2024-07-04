@@ -1,4 +1,9 @@
 import excavator
+import pickle
+import networkx as nx
+import scrapper
+import matplotlib.pyplot as plt
+import wiki_scrapper
 
 
 if __name__ == '__main__':
@@ -11,6 +16,10 @@ if __name__ == '__main__':
                 500: ["Physics", "Physique", "Física"],
                 1000: ["Biology", "Biologie", "Biología"]}
 
-    setup_params = {'langs': LANGS, 'starting_points': subjects[100], 'max_pages_per_lang': 100, 'save': True,
-                    'edge_removal_chance': 00, 'edge_inv_chance': 0, 'print_info': True}
-    print(excavator.create_sample_graph(**setup_params))
+    setup_params = {'langs': LANGS, 'starting_points': subjects[100], 'max_pages_per_lang': 100,
+                    'removal_chance': 0, 'inversion_chance': 0, 'print_info': True}
+    filename = 'Excavated Graphs/Mathematics_100_samples_graph.pkl'
+
+    G = wiki_scrapper.build_graph(True, True, **setup_params)
+
+

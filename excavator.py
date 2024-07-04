@@ -52,6 +52,82 @@ def remove_edge(G, edge):
     G.remove_edge(*edge)
 
 
+def get_connection_pages(starting_point, selected_lang, langs, max_pages: int = 100):
+    """
+    This function returns the pages that are connected to the starting point.
+    :param starting_point: starting point.
+    :param langs: list of languages.
+    :param selected_lang: index of the selected language.
+    :param max_pages: maximum number of pages per language.
+    :return:
+    """
+
+    translations = []  # translations dictionary from the starting point's
+    # language to the others.
+    vertices = set()  # set of vertices in the same language as the starting point.
+    connections = []  # list of connections.
+    sites = [pywikibot.Site(f'wikipedia:{lang}') for lang in langs]  # get the site objects.
+    # Add vertices and translations.
+    vertices.add(starting_point)  # add the starting point to the set of vertices.
+    site = sites[selected_lang]  # get the site object.
+    starting_page = pywikibot.Page(site, starting_point)  # get the page object.
+    links_Q = get_links(starting_page, site)  # get the links in the starting point.
+
+    for link in links_Q:  # add the links to the set of vertices.
+        if link in vertices:  # if the link is already visited.
+            continue
+        vertices.add(link)
+        connections.append((starting_point, link))
+
+    while links_Q and len(vertices) <= max_pages:
+        current_link = links_Q.pop(0)
+        current_page = pywikibot.Page(site, current_link)  # get the page object.
+        links = get_links(current_page, site)  # get the links in the current page.
+
+        # Add the links to the queue. (if they are not already visited)
+        slice_idx = min(len(links), max_pages - len(vertices))  # get the slice index.
+        if slice_idx == len(links):  # if the max pages is not reached.
+            links_Q.extend([link for link in links if link not in vertices])  # add the links to the queue.
+        else:
+            links = links[:slice_idx]  # slice the links.
+            links_Q = []  # empty the queue.
+        vertices.update(set(links))  # add the links to the set of vertices.
+        connections.extend([(current_link, link) for link in links])
+
+        print(f"Vertices: {len(vertices)}, lang: {langs[selected_lang]}")
+
+    # Add translations.
+    for v in vertices:
+        v_page = pywikibot.Page(site, v)  # get the page object.
+        translation_titles = [link_.title for link_ in v_page.iterlanglinks() if link_.site in sites
+                              and link_.site != site]
+        translation_titles.append(v)  # add the original title.
+        translations.append(translation_titles)  # add the translations.
+    print(f"Translations: {len(translations)}: {translations}")
+    return vertices, translations, connections
+
+
+def get_translation_edges(vertices, translations):
+    """
+    This function returns the translation edges between the vertices.
+    :param vertices: set of vertices.
+    :param translations: dictionary of translations.
+    :return: list of translation edges.
+    """
+    translation_edges = []  # list of translation edges.
+
+    # Add the translation edges.
+    for translation in translations:
+        if len(translation) < 2:  # no translations.
+            continue
+
+        for i in range(len(translation) - 1):
+            for j in range(i + 1, len(translation)):
+                if translation[i] in vertices and translation[j] in vertices:
+                    translation_edges.append((translation[i], translation[j]))  # add the translation edge.
+    return translation_edges
+
+
 def create_sample_graph(**setup_params):
     """
     This method creates a page graph for each language, and then combines them into a single graph.
@@ -73,154 +149,72 @@ def create_sample_graph(**setup_params):
     edge_inversion_chance = setup_params.get('edge_inv_chance', 0.1)  # chance of inverting an edge.
 
     print_info = setup_params.get('print_info', False)  # print the process information.
+    bigsep = "-" * 100  # large separator.
+    smallsep = "-" * 50  # small separator.
+
+    # initialize the vertices, translations, and new red edges.
+    vertices, total_translations = {}, []  # initialize the vertices and translations.
+    total_red_edges = []
+
     if print_info:
-        bigsep = "-" * 100  # large separator.
-        smallsep = "-" * 50  # small separator.
+        print(bigsep)
 
-    # initialize the vertices and edges.
-    vertices = {lang: set() for lang in langs}
-    edges = {lang: list() for lang in langs}
+    # get the connection pages.
 
-    if print_info:
-        print(bigsep)  # Large separator.
-        print(f"Excavating {max_pages_per_lang} pages for '{langs}' starting from {starting_points}...")
-        print(smallsep)  # Small separator.
+    for starting_point, selected_lang in zip(starting_points, range(len(langs))):
+        # get the connection pages.
+        vertices[selected_lang], new_translations, new_red_edges = (
+            get_connection_pages(starting_point, selected_lang, langs, max_pages_per_lang))
 
-    for lang, starting_point in zip(langs, starting_points):  # iterate over the languages and starting points.
+        # add the new translations.
+        # don't add the translations that are already in the total translations.
+        for translation in new_translations:
+            if list(set(translation)) not in total_translations:
+                total_translations.append(translation)
 
-        # Add the starting point to the set of vertices for the current language.
-        vertices[lang].add(starting_point)
-        site = pywikibot.Site(f'wikipedia:{lang}')
-
-        # Add the starting neighbors to the set of vertices for the current language.
-        page = pywikibot.Page(site, starting_point)
-
-        # Get the links in the starting page.
-        links = get_links(page, site)
-
-        # Add the links to the set of vertices for the current language.
-        vertices[lang].update(set(links))
-
-        # Add the edges between the starting point and its neighbors.
-        edges[lang].extend([(starting_point, link) for link in links])
-
-        # Make a queue of the links to visit.
-        Q = links.copy()
+        # add the new red edges.
+        total_red_edges.extend(new_red_edges)
 
         if print_info:
-            print(f"Successfully excavated {starting_point}. ({len(vertices[lang])} neighbors in total.)")
+            print(f"Vertices in {langs[selected_lang]}: {len(vertices[selected_lang])}")
+            print(vertices[selected_lang])
             print(smallsep)
-        # Visit the neighbors of the new vertices.
-        while len(vertices[lang]) < max_pages_per_lang and Q:
-            current_link = Q.pop(0)  # get the first link in the queue.
+    print(total_translations)
+    # get the translation edges.
+    all_vertices = set().union(*vertices.values())
+    translation_edges = get_translation_edges(all_vertices, total_translations)
 
-            # define the current page.
-            page = pywikibot.Page(site, current_link)
+    print(vertices)
+    print(total_translations)
+    print("translation edges", translation_edges)
+    print("red edges", total_red_edges)
+    # create the graph.
+    G = nx.Graph()  # create a graph object.
 
-            # Get the links in the current page.
-            links = get_links(page, site)
+    for lang in langs:  # add the vertices to the graph.
+        G.add_nodes_from(vertices[langs.index(lang)], type=lang)
 
-            # Add the links to the queue. (if they are not already visited)
-            Q.extend([link for link in links if link not in vertices[lang]])
-
-            # add the links to the set of vertices for the current language.
-            vertices[lang].update(set(links))
-
-            # Add the edges between the current link and its neighbors.
-            edges[lang].extend([(current_link, link) for link in links])
-
-    if print_info:
-        print(f"Completed the excavation process. The graph has {sum([len(verts) for verts in vertices.values()])}"
-              f" vertices.")
-        print("-" * 20)
-        print("Combining the graphs...")
-
-    # Create the graph.
-    G = nx.Graph()
-
-    # Add the vertices to the graph.
-    for lang in langs:
-        for vertex in vertices[lang]:
-            G.add_node(vertex, type=lang)
-
-    # Add the red edges to the graph. (similarity measure)
-    for lang in langs:
-        edges[lang] = set(edges[lang])  # remove duplicates.
-    red_edges = [edge for lang in langs for edge in edges[lang]]  # combine the edges.
-
-    # Add the red edges to the graph.
-    for edge in red_edges:
-        G.add_edge(edge[0], edge[1], color='red')
-
-    # Add the blue edges to the graph. (translation measure)
-    for lang1 in langs:
-        for lang2 in langs:
-            if lang1 == lang2:  # skip the same language.
-                continue
-
-            # iterate over the vertices in lang1.
-            for vertex1 in vertices[lang1]:
-
-                # iterate over the vertices in lang2.
-                for vertex2 in vertices[lang2]:
-
-                    # create the site objects.
-                    site1 = pywikibot.Site(f'wikipedia:{lang1}')
-                    site2 = pywikibot.Site(f'wikipedia:{lang2}')
-
-                    # create the page objects.
-                    page1 = pywikibot.Page(site1, vertex1)
-                    page2 = pywikibot.Page(site2, vertex2)
-
-                    # check if the pages are translations of one another.
-                    if not (page1.exists() and page2.exists()):  # check if the pages exist.
-                        continue
-
-                    # get interlanguage links.
-                    lang_links = page1.langlinks()
-
-                    # check if the pages are translations of one another.
-                    for link in lang_links:
-                        if link.site.code == lang2 and link.title == vertex2:
-                            G.add_edge(vertex1, vertex2, color='blue')
-                            break
-    if print_info:
-        print("Successfully combined the graphs.")
-        print(smallsep)
-        print("Applying the edge removal and inversion...")
-
-    # apply the edge removal and inversion.
-    removal_flag = edge_removal_chance > 0
-    inversion_flag = edge_inversion_chance > 0
-
-    if inversion_flag:  # check inversion first.
-        for edge in G.edges():
-            if random.random() < edge_inversion_chance:
-                invert_edge(G, edge)
-    if removal_flag:  # check removal second.
-        for edge in G.edges():
-            if random.random() < edge_removal_chance:
-                remove_edge(G, edge)
+    G.add_edges_from(translation_edges, color='blue')  # add the translation edges to the graph.
+    G.add_edges_from(total_red_edges, color='red')  # add the red edges to the graph.
 
     if print_info:
-        print("Successfully applied the edge removal and inversion.")
-        print(smallsep)
-        print("Saving the graph...")
-    # save the graph.
+        print(bigsep)
+        print(f"Number of nodes: {G.number_of_nodes()}")
+        print(f"Number of edges: {G.number_of_edges()}")
+        print(bigsep)
+
+    # invert and remove edges.
+    for edge in list(G.edges):
+        if random.random() < edge_inversion_chance:  # invert the edge.
+            invert_edge(G, edge)
+        if random.random() < edge_removal_chance:  # remove the edge.
+            remove_edge(G, edge)
+
     if save:
-        filename = (f"{starting_points[0]}_{max_pages_per_lang * len(langs)}_samples_{edge_inversion_chance}_"
-                    f"inversions_{edge_removal_chance}_removals_graph.pkl")
-        dirname = "Excavated Graphs"
-        try:
-            with open(f"{dirname}/{filename}", 'wb') as f:
-                pkl.dump(G, f)
-        except OSError:  # if the directory does not exist.
-            os.mkdir(dirname)  # create the directory.
-            with open(f"{dirname}/{filename}", 'wb') as f:
-                pkl.dump(G, f)
-
-        if print_info:
-            print(f"Successfully saved the graph at {filename}.")
-            print(bigsep)
+        # save the graph.
+        filename = f"Excavated Graphs/{starting_points[0]}_{max_pages_per_lang}_samples_graph.pkl"
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+        with open(filename, 'wb') as f:
+            pkl.dump(G, f)
 
     return G
