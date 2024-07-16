@@ -43,8 +43,9 @@ def build_graph(draw: bool = True, save: bool = False, **kwargs):
     blue_edges = []  # list to store the blue edges.
     vertices_in_langs = {lang: set() for lang in languages}  # initialize the vertices in each language.
 
-    # define the vertex colors.
-    color_dict = {lang: '#' + ''.join([random.choice('0123456789ABCDEF') for _ in range(6)]) for lang in languages}
+    # define the vertex colors. choose distinct shapes for each language.
+    shape_dict = {lang: shape for lang, shape in zip(languages, ['s', 'o', '^'])}
+    # NOTE-change the shapes list if more languages are added
 
     """
     Step 1: Get the connection pages. Add each visited vertex to the graph with 
@@ -85,7 +86,7 @@ def build_graph(draw: bool = True, save: bool = False, **kwargs):
         # Add the vertices to the graph.
         for vertex in vertices_in_lang:
             # add the vertex to the graph.
-            G.add_node(vertex, lang=languages[selected_lang], color=color_dict[languages[selected_lang]])
+            G.add_node(vertex, lang=languages[selected_lang], shape=shape_dict[languages[selected_lang]])
 
         vertices_in_langs[languages[selected_lang]] = vertices_in_lang  # save the vertices in the language.
 
@@ -117,13 +118,13 @@ def build_graph(draw: bool = True, save: bool = False, **kwargs):
 
         # add the translations to the graph.
         for lang_, translation in langlinks.items():
-            new_vertices.add((translation, lang_, color_dict[lang_]))  # add the translation to the new nodes.
+            new_vertices.add((translation, lang_, shape_dict[lang_]))  # add the translation to the new nodes.
             blue_edges.append((vertex, translation))  # add the blue edge.
             translations[lang_].append(translation)  # save the translation to the dictionary.
 
     # Add the new nodes to the graph.
     for v in new_vertices:  # go over the new vertices.
-        G.add_node(v[0], lang=v[1], color=v[2])  # add the vertex to the graph.
+        G.add_node(v[0], lang=v[1], shape=v[2])  # add the vertex to the graph.
 
     if print_info:
         print("Translations added. Current vertices:", len(G.nodes))
@@ -202,9 +203,14 @@ def build_graph(draw: bool = True, save: bool = False, **kwargs):
         # draw the graph.
         pos = nx.spring_layout(G)
         edge_colors = nx.get_edge_attributes(G, 'color').values()
-        node_colors = [color_dict[G.nodes[node]['lang']] for node in G.nodes]
-        sizes = [100 for _ in G.nodes]
-        nx.draw(G, pos, edge_color=edge_colors, node_color=node_colors, with_labels=False, node_size=sizes)
+        node_shapes = [shape_dict[G.nodes[node]['lang']] for node in G.nodes]
+        print(node_shapes)
+        for shape in node_shapes:  # draw the nodes.
+            vertices_to_draw = [node for node in G.nodes if G.nodes[node]['shape'] == shape]
+            sizes = [100 for _ in vertices_to_draw]
+            nx.draw_networkx_nodes(G, pos, nodelist=vertices_to_draw, node_shape=shape, node_size=sizes)
+
+        nx.draw_networkx_edges(G, pos, edge_color=edge_colors)  # draw the edges.
 
         if save:  # save the graph.
             try:
@@ -218,14 +224,14 @@ def build_graph(draw: bool = True, save: bool = False, **kwargs):
         plt.show()
 
     if save:  # save the graph.
-        filename = f'Excavated Graphs/{starting_points[0]}_{max_pages_per_lang}_samples_graph.pkl'
+        filename = f'Excavated Graphs/{starting_points[0]}_{max_pages_per_lang}_samples_graph.gpickle'
         try:
             with open(filename, 'wb') as file:
-                pkl.dump(G, file)
+                pkl.dump(G, file, pkl.HIGHEST_PROTOCOL)
         except OSError:
             os.makedirs('Excavated Graphs')
             with open(filename, 'wb') as file:
-                pkl.dump(G, file)
+                pkl.dump(G, file, pkl.HIGHEST_PROTOCOL)
 
     return G
 

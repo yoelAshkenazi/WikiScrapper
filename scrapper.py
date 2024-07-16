@@ -224,6 +224,7 @@ def draw(G: nx.Graph):
 
     edge_colors = [G[u][v]['color'] for u, v in G.edges]
     vertex_colors = [G.nodes[v]['color'] for v in G.nodes]
+    sizes = [100 for v in G.nodes]
 
-    nx.draw(G, with_labels=True, edge_color=edge_colors, node_color=vertex_colors)
+    nx.draw(G, with_labels=False, edge_color=edge_colors, node_color=vertex_colors, node_size=sizes,)
     plt.show()
