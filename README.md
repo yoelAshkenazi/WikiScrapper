@@ -5,9 +5,9 @@
 This repository contains methods and tools that help the creation of multilingual graphs with wikipedia subjects, with page hyperlinks as red edges, and page translations as blue edges.
 
 ### requirements
-  1: networkx
-  2: pywikibot
-  3: matplotlib
+1: networkx
+2: pywikibot
+3: matplotlib
 
 ### usage
   1: clone this repository to your IDE.
