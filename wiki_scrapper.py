@@ -114,6 +114,7 @@ def build_graph(draw: bool = True, save: bool = False, **kwargs):
 
         # get the translations of the page.
         langlinks = page.iterlanglinks()  # get the inter wiki links.
+        langlinks = [link for link in langlinks if link.site.code in languages]  # filter the languages.
         langlinks = {link.site.code: link.title for link in langlinks if link.site.code in languages}  # filter
 
         # add the translations to the graph.

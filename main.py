@@ -12,7 +12,7 @@ if __name__ == '__main__':
                 500: ["Physics", "Physique", "Física"],
                 1000: ["Biology", "Biologie", "Biología"]}
 
-    setup_params = {'langs': LANGS, 'starting_points': subjects[100], 'max_pages_per_lang': 500,
+    setup_params = {'langs': LANGS, 'starting_points': subjects[100], 'max_pages_per_lang': 100,
                     'removal_chance': 0, 'inversion_chance': 0, 'print_info': True}
     save = True
     filename = 'Excavated Graphs/Mathematics_100_samples_graph.gpickle'
