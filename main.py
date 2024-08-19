@@ -1,9 +1,6 @@
-
 import wiki_scrapper
 
-
 if __name__ == '__main__':
-
     LANGS = ["en", "fr", "es"]
 
     # create a list of main subjects for different graph sizes.
