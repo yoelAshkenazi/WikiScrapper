@@ -231,14 +231,16 @@ def build_graph(draw: bool = True, save: bool = False, **kwargs):
         nx.draw_networkx_edges(G, pos, edge_color=edge_colors)  # draw the edges.
 
         if save:  # save the graph.
+            filename = f'Figures/'
+            if add_content:
+                filename += 'With Content/'
+            filename += f'{starting_points[0]}_{max_pages_per_lang}_samples_graph.png'
             try:
-                filename = f'Figures/{starting_points[0]}_{max_pages_per_lang}_samples_graph.png'
                 plt.savefig(filename)
             except OSError:
-                os.makedirs('Figures')
-                filename = f'Figures/{starting_points[0]}_{max_pages_per_lang}_samples_graph.png'
+                os.makedirs('Figures') if not add_content else os.makedirs('Figures/With Content')
                 plt.savefig(filename)
-
+        plt.title(f'{starting_points[0]}_{max_pages_per_lang}_samples_graph')
         plt.show()
 
     if save:  # save the graph.
@@ -326,9 +328,11 @@ def get_content(title: str) -> str:
         try:
             wiki = wikipedia.page(title=new_title)  # get the page.
         except wikipedia.exceptions.PageError:  # if the page does not exist.
-            return 'Page does not exist.'
+            print(f"Page '{title}' does not exist.")
+            return ''
         except wikipedia.exceptions.DisambiguationError:  # if the page is still a disambiguation page.
-            return 'Disambiguation page.'
+            print(f"Page '{title}' is a disambiguation page.")
+            return ''
 
     except wikipedia.exceptions.PageError:  # if the page does not exist.
         return ''
