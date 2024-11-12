@@ -39,6 +39,7 @@ def build_graph(draw: bool = True, save: bool = False, **kwargs):
     smallsep = "-" * 50  # small separator.
     add_content = kwargs.get('content', False)  # add the content of the pages to the graph.
     max_bfs_links = kwargs.get('max_links', 5)  # maximum number of links to follow in the BFS.
+    format_ = kwargs.get('format', 'gpickle')  # the format of the output file.
 
     G = nx.Graph()  # create a graph object.
     red_edges = []  # list to store the red edges.
@@ -137,7 +138,8 @@ def build_graph(draw: bool = True, save: bool = False, **kwargs):
             for lang_, translation in langlinks.items():
                 if add_content:
                     text = get_content(translation)
-                    new_vertices.add((translation, lang_, shape_dict[lang_], text))  # add the translation to the new nodes.
+                    new_vertices.add((translation, lang_, shape_dict[lang_], text))  # add the translation to the new
+                    # nodes.
                 else:
                     new_vertices.add((translation, lang_, shape_dict[lang_]))  # add the translation to the new nodes.
                 blue_edges.append((vertex, translation))  # add the blue edge.
@@ -247,16 +249,32 @@ def build_graph(draw: bool = True, save: bool = False, **kwargs):
         filename = f'Excavated Graphs/'
         if add_content:
             filename += 'With Content/'
-        filename += f'{starting_points[0]}_{max_pages_per_lang}_samples_graph.gpickle'
-        print(f"Saving the graph to '{filename}'")
-        try:
-            with open(filename, 'wb') as file:
-                pkl.dump(G, file, pkl.HIGHEST_PROTOCOL)
-        except OSError:
-            os.makedirs('Excavated Graphs') if not add_content else os.makedirs('Excavated Graphs/With Content')
-            with open(filename, 'wb') as file:
-                pkl.dump(G, file, pkl.HIGHEST_PROTOCOL)
+        if format_ == 'gpickle':  # save the graph in gpickle format.
+            filename += f'{starting_points[0]}_{max_pages_per_lang}_samples_graph.gpickle'
+            print(f"Saving the graph to '{filename}'")
+            try:
+                with open(filename, 'wb') as file:
+                    pkl.dump(G, file, pkl.HIGHEST_PROTOCOL)
+            except OSError:
+                os.makedirs('Excavated Graphs') if not add_content else os.makedirs('Excavated Graphs/With Content')
+                with open(filename, 'wb') as file:
+                    pkl.dump(G, file, pkl.HIGHEST_PROTOCOL)
 
+        if format_ == 'csv' and len(languages) == 1:  # save the graph in csv format. (one csv for nodes, one for edges)
+            node_filename = filename + f'{starting_points[0]}_{max_pages_per_lang}_samples_nodes.csv'
+            edge_filename = filename + f'{starting_points[0]}_{max_pages_per_lang}_samples_edges.csv'
+            print(f"Saving the graph to '{node_filename}' and '{edge_filename}'")
+            nx.write_edgelist(G, edge_filename, data=False, delimiter=',')
+            # Make a dataframe of the nodes. (columns are: id, lang, shape, content)
+            import pandas as pd
+            nodes_dict = {'id': [], 'lang': [], 'shape': [], 'content': []}
+            for node in G.nodes:
+                nodes_dict['id'].append(node)
+                nodes_dict['lang'].append(G.nodes[node]['lang'])
+                nodes_dict['shape'].append(G.nodes[node]['shape'])
+                nodes_dict['content'].append(G.nodes[node].get('content', ''))
+            nodes_df = pd.DataFrame(nodes_dict)
+            nodes_df.to_csv(node_filename, index=False)
     return G
 
 
