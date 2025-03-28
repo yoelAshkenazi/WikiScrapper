@@ -58,13 +58,16 @@ if __name__ == '__main__':
 
     content_subjects = ['London', 'turtle', 'car', 'apple', 'clock']
 
-    setup_params = {'langs': LANGS, 'starting_points': subjects[1000], 'max_pages_per_lang': 100,
-                    'removal_chance': 0, 'inversion_chance': 0, 'print_info': True, 'content': False, 'max_links': 5,
+    setup_params = {'langs': LANGS, 'starting_points': subjects[1000], 'max_pages_per_lang': 1000,
+                    'removal_chance': 0, 'inversion_chance': 0, 'print_info': True, 'content': False, 'max_links': 10,
                     'format': 'csv'}
     save = True
 
-    for subject in content_subjects:
+    """for subject in content_subjects:
         graph = build_content_graph(subject, 'en', **setup_params)
         for node in graph.nodes:
             print(f"{node}: {graph.nodes()[node]['content']}")
-        print(f"Graph built\n\n")
+        print(f"Graph built\n\n")"""
+
+    subject = 'Terrorism'
+    graph = build_content_graph(subject, 'en', **setup_params)
